@@ -1,0 +1,17 @@
+features:
+- binding_time: &id001 compilation
+  guid: 0
+  incompatible_with: []
+  is_mandatory: true
+  name: Feature 1
+  rationale: Rationale 1
+  relationships:
+  - guid: 1
+    rel: alternative
+- binding_time: *id001
+  guid: 1
+  incompatible_with: []
+  is_mandatory: true
+  name: Feature 2
+  rationale: Rationale 2
+  relationships: []

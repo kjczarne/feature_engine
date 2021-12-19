@@ -1,4 +1,5 @@
 import argparse
+from networkx.convert import to_networkx_graph
 import yaml
 from typing import Generator
 import networkx as nx
@@ -22,8 +23,12 @@ def main():
     ])
     
     FC.to_yaml("test.yaml")
+    G = FC.to_nx_graph()
     
     FC2 = FeatureContainer.from_yaml("test2.yaml")
+    G2 = FC2.to_nx_graph()
+    print("test")
+    
 
 
 if __name__ == "__main__":

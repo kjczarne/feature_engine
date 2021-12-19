@@ -7,6 +7,7 @@ from typing import List
 from enum import Enum, auto
 
 from ruamel import yaml
+from functools import reduce
 import networkx as nx
 
 
@@ -35,12 +36,10 @@ class Relationship:
 
 
 @dataclass
-class DirectionalRelationship:
+class DirectionalRelationship(Relationship):
     """
     A relationship between two features with explicit relationship direction.
     """
-    guid: str
-    rel: RelationshipTypes
     direction: Direction
 
 
@@ -56,6 +55,25 @@ class Feature:
     is_mandatory: bool
     incompatible_with: List[Feature] = field(default_factory=list)
     relationships: List[Relationship] = field(default_factory=list)
+    
+    @property
+    def relationship_guids(self):
+        return [r.guid for r in self.relationships]
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Feature:
+        """
+        Constructs a Feature from a dictionary.
+        """
+        return Feature(
+            d["guid"],
+            d["name"],
+            BindingTime(d["binding_time"]),
+            d["rationale"],
+            d["is_mandatory"],
+            [Feature.from_dict(f) for f in d["incompatible_with"]],
+            [Relationship(r["guid"], RelationshipTypes(r["rel"])) for r in d["relationships"]],
+        )
 
 
 @dataclass
@@ -69,7 +87,8 @@ class FeatureContainer:
         Creates a FeatureContainer from a YAML file.
         """
         with open(path, "r") as f:
-            return cls(**yaml.load(f, Loader=yaml.Loader))
+            dct = yaml.load(f, Loader=yaml.Loader)
+            return cls([Feature.from_dict(f) for f in dct["features"]])
     
     def to_yaml(self, path: str) -> None:
         """
@@ -79,4 +98,14 @@ class FeatureContainer:
             yaml.dump(self, f)
     
     def to_nx_graph(self) -> nx.Graph:
-        pass
+        G = nx.Graph()
+        G.add_nodes_from([
+            (f.guid, {k: v for k, v in f.__dict__.items() if k != "guid"})
+            for f in self.features
+        ])
+
+        G.add_edges_from(reduce(lambda x, y: x + y, [
+            [ (f.guid, r) for r in f.relationship_guids]
+            for f in self.features
+        ]))
+        return G

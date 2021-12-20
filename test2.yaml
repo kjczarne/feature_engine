@@ -1,7 +1,6 @@
 features:
 - binding_time: &id001 compilation
   guid: 0
-  incompatible_with: []
   is_mandatory: true
   name: Feature 1
   rationale: Rationale 1
@@ -10,8 +9,16 @@ features:
     rel: alternative
 - binding_time: *id001
   guid: 1
-  incompatible_with: []
   is_mandatory: true
   name: Feature 2
   rationale: Rationale 2
   relationships: []
+- binding_time: initialization
+  guid: 2
+  is_mandatory: false
+  name: Feature 3
+  rationale: asdfasdfasdf
+  relationships:
+    - guid: 1
+      rel: incompatible
+

@@ -18,8 +18,8 @@ def main():
     # nx.draw_networkx(G)
     
     FC = FeatureContainer(features=[
-        Feature(0, "Feature 1", BindingTime.COMPILATION, "Rationale 1", True, [], [Relationship(1, RelationshipTypes.ALTERNATIVE)]),
-        Feature(1, "Feature 2", BindingTime.COMPILATION, "Rationale 2", True, [], []),
+        Feature(0, "Feature 1", BindingTime.COMPILATION, "Rationale 1", True, [Relationship(1, RelationshipTypes.ALTERNATIVE)]),
+        Feature(1, "Feature 2", BindingTime.COMPILATION, "Rationale 2", True, []),
     ])
     
     FC.to_yaml("test.yaml")

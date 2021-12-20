@@ -22,6 +22,8 @@ class BindingTime(Enum):
 
 class RelationshipTypes(Enum):
     ALTERNATIVE = "alternative"
+    INCOMPATIBLE = "incompatible"
+
 
 class Direction(Enum):
     TO_SELF = "to_self"
@@ -55,7 +57,6 @@ class Feature:
     binding_time: BindingTime
     rationale: str
     is_mandatory: bool
-    incompatible_with: List[Feature] = field(default_factory=list)
     relationships: List[Relationship] = field(default_factory=list)
 
     @property
@@ -73,20 +74,20 @@ class Feature:
             BindingTime(d["binding_time"]),
             d["rationale"],
             d["is_mandatory"],
-            [Feature.from_dict(f) for f in d["incompatible_with"]],
             [Relationship(r["guid"], RelationshipTypes(r["rel"])) for r in d["relationships"]],
         )
 
 
+# LATER: refactor to make color style configurable
 class Colors(Enum):
     """
     Colors for the feature graph.
     """
-    MANDATORY = "#112311"
-    OPTIONAL = "#ff0000"
-    INCOMPATIBLE = "#ff00ff"
-    ALTERNATIVE = "#331233"
-    DEFAULT = "#000000"
+    MANDATORY = "#eb4034"
+    OPTIONAL = "#79e05c"
+    INCOMPATIBLE = "#f50000"
+    ALTERNATIVE = "#6a12e6"
+    DEFAULT = "#514b59"
 
 
 @dataclass
@@ -131,11 +132,13 @@ class FeatureContainer:
         return G
 
     def cytoscape(self):
-        nodes = [{"data": {"id": str(f.guid), "label": f.name}, "style": {"color": "green", "background-color": "magenta"}}
+        nodes = [{"data": {"id": str(f.guid), "label": f.name}, "style": {
+                  "background-color": Colors.MANDATORY.value if f.is_mandatory else Colors.OPTIONAL.value
+                }}
                  for f in self.features]
         edges = [{"data": {"source": str(f.guid), "target": str(r.guid), "label": str(r.rel.value)}, "style": {
-                  "mid-target-arrow-color": "red",
-                  "mid-target-arrow-shape": "vee",
+                #   "mid-target-arrow-color": "red",
+                #   "mid-target-arrow-shape": "vee",
                   "line-color": Colors.ALTERNATIVE.value if r.rel == RelationshipTypes.ALTERNATIVE else Colors.DEFAULT.value,
                   'opacity': 0.9,
                 #   'z-index': 5000,

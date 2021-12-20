@@ -8,6 +8,9 @@ from enum import Enum, auto
 
 from ruamel import yaml
 from functools import reduce
+
+import dash_cytoscape as cyto
+from dash import html
 import networkx as nx
 
 
@@ -19,7 +22,6 @@ class BindingTime(Enum):
 
 class RelationshipTypes(Enum):
     ALTERNATIVE = "alternative"
-
 
 class Direction(Enum):
     TO_SELF = "to_self"
@@ -55,7 +57,7 @@ class Feature:
     is_mandatory: bool
     incompatible_with: List[Feature] = field(default_factory=list)
     relationships: List[Relationship] = field(default_factory=list)
-    
+
     @property
     def relationship_guids(self):
         return [r.guid for r in self.relationships]
@@ -76,9 +78,20 @@ class Feature:
         )
 
 
+class Colors(Enum):
+    """
+    Colors for the feature graph.
+    """
+    MANDATORY = "#112311"
+    OPTIONAL = "#ff0000"
+    INCOMPATIBLE = "#ff00ff"
+    ALTERNATIVE = "#331233"
+    DEFAULT = "#000000"
+
+
 @dataclass
 class FeatureContainer:
-    
+
     features: List[Feature] = field(default_factory=list)
 
     @classmethod
@@ -89,23 +102,64 @@ class FeatureContainer:
         with open(path, "r") as f:
             dct = yaml.load(f, Loader=yaml.Loader)
             return cls([Feature.from_dict(f) for f in dct["features"]])
-    
+
     def to_yaml(self, path: str) -> None:
         """
         Writes a FeatureContainer to a YAML file.
         """
         with open(path, "w") as f:
             yaml.dump(self, f)
-    
-    def to_nx_graph(self) -> nx.Graph:
-        G = nx.Graph()
-        G.add_nodes_from([
+
+    @property
+    def nx_nodes(self):
+        return [
             (f.guid, {k: v for k, v in f.__dict__.items() if k != "guid"})
+            for f in self.features
+        ]
+
+    @property
+    def nx_edges(self):
+        return reduce(lambda x, y: x + y, [
+            [(f.guid, r.guid) for r in f.relationships]
             for f in self.features
         ])
 
-        G.add_edges_from(reduce(lambda x, y: x + y, [
-            [ (f.guid, r) for r in f.relationship_guids]
-            for f in self.features
-        ]))
+    def to_nx_graph(self) -> nx.Graph:
+        G = nx.Graph()
+        G.add_nodes_from(self.nx_nodes)
+        G.add_edges_from(self.nx_edges)
         return G
+
+    def cytoscape(self):
+        nodes = [{"data": {"id": str(f.guid), "label": f.name}, "style": {"color": "green", "background-color": "magenta"}}
+                 for f in self.features]
+        edges = [{"data": {"source": str(f.guid), "target": str(r.guid), "label": str(r.rel.value)}, "style": {
+                  "mid-target-arrow-color": "red",
+                  "mid-target-arrow-shape": "vee",
+                  "line-color": Colors.ALTERNATIVE.value if r.rel == RelationshipTypes.ALTERNATIVE else Colors.DEFAULT.value,
+                  'opacity': 0.9,
+                #   'z-index': 5000,
+                  'label': 'data(label)',
+                  "text-wrap": "wrap"
+                 }}
+                 for f in self.features
+                 for r in f.relationships]
+        return html.Div([
+            cyto.Cytoscape(
+                id='cytoscape',
+                elements=nodes + edges,
+                layout={'name': 'circle'},
+                style={
+                    'height': '95vh',
+                    'width': '100%'
+                },
+                stylesheet=[
+                    {
+                        'selector': 'edge',
+                        'style': {
+                            'label': 'data(label)'
+                        }
+                    }
+                ]
+            )
+        ])

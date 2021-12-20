@@ -1,9 +1,9 @@
 import argparse
-from networkx.convert import to_networkx_graph
 import yaml
-from typing import Generator
+import dash
 import networkx as nx
 
+from typing import Generator
 from feature_engine.model import FeatureContainer, Feature, Relationship, RelationshipTypes, Direction, DirectionalRelationship, BindingTime
 
 def main():
@@ -29,6 +29,9 @@ def main():
     G2 = FC2.to_nx_graph()
     print("test")
     
+    app = dash.Dash(__name__)
+    app.layout = FC2.cytoscape()
+    app.run_server(debug=True)
 
 
 if __name__ == "__main__":

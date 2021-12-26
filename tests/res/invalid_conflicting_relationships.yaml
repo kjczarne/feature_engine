@@ -1,3 +1,4 @@
+version: '0.1'
 features:
 - binding_time: compilation
   guid: 0

@@ -15,6 +15,9 @@ from dash import html
 import networkx as nx
 
 
+__version__ = "0.1.0"
+
+
 class RelationshipInvalidError(Exception):
     """This exception is raised when a relationship
     between features is invalid."""
@@ -187,6 +190,7 @@ def _default_rules():
 class FeatureContainer:
 
     features: List[Feature] = field(default_factory=list)
+    application_version: str = __version__
     debug: bool = False
     rules: List[RuleFunctionWithMessage] = field(default_factory=_default_rules, init=False)
 
@@ -204,7 +208,7 @@ class FeatureContainer:
         """
         with open(path, "r") as f:
             dct = yaml.YAML(typ="unsafe", pure=True).load(f)
-            return cls([Feature.from_dict(f) for f in dct["features"]], debug)
+            return cls([Feature.from_dict(f) for f in dct["features"]], __version__, debug)
 
     def to_yaml(self, path: Union[str, Path]) -> None:
         """

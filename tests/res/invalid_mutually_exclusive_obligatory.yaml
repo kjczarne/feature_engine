@@ -1,0 +1,16 @@
+features:
+- binding_time: compilation
+  guid: 0
+  is_mandatory: true
+  name: Feature 1
+  rationale: Rationale 1
+  relationships: []
+- binding_time: initialization
+  guid: 1
+  is_mandatory: true
+  name: Feature 2
+  rationale: asdfasdfasdf
+  relationships:
+    - guid: 0
+      rel: incompatible  # two obligatory features should never be incompatible with one another
+

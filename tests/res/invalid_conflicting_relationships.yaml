@@ -1,0 +1,19 @@
+features:
+- binding_time: compilation
+  guid: 0
+  is_mandatory: true
+  name: Feature 1
+  rationale: Rationale 1
+  relationships:
+    - guid: 1
+      rel: complex
+- binding_time: initialization
+  guid: 1
+  is_mandatory: true
+  name: Feature 2
+  rationale: asdfasdfasdf
+  relationships:
+    - guid: 0
+      rel: alternative  # two nodes declare different nature of the relationship which
+                        # is not a valid state for the feature graph
+

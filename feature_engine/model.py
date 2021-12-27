@@ -3,7 +3,8 @@ Data model for the Feature Engine.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Callable, Generator, List, Optional, Tuple, Union
+from dataclasses_jsonschema import JsonSchemaMixin
+from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 from enum import Enum
 
 from ruamel import yaml
@@ -64,7 +65,7 @@ class Direction(Enum):
 
 
 @dataclass
-class Relationship:
+class Relationship(JsonSchemaMixin):
     """
     A relationship between two features.
     """
@@ -81,7 +82,7 @@ class DirectionalRelationship(Relationship):
 
 
 @dataclass
-class Feature:
+class Feature(JsonSchemaMixin):
     """
     Describes a feature representation.
     """
@@ -227,7 +228,7 @@ def _default_graph_rules():
 
 
 @dataclass
-class FeatureContainer:
+class FeatureContainer(JsonSchemaMixin):
     features: List[Feature] = field(default_factory=list)
     version: str = field(default=__version__, compare=False)
     debug: bool = field(default=False, compare=False)
@@ -320,7 +321,7 @@ class FeatureContainer:
         G.add_edges_from(self.nx_edges)
         return G
 
-    def cytoscape(self):
+    def cytoscape(self, stylesheet: Optional[Union[List, Dict]] = None):
         """Produces a `cytoscape` representation of the feature graph.
         This component can be used within Python Dash applications to
         visualize the feature graph.
@@ -345,13 +346,81 @@ class FeatureContainer:
                 layout={'name': 'circle'},
                 style={
                     'height': '95vh',
-                    'width': '100%'
+                    # 'width': '75vw',
+                    # "float": "left",
                 },
-                stylesheet=[
+                stylesheet=stylesheet or [
                     {
-                        'selector': 'edge',
+                        "selector": 'node',
                         'style': {
-                            'label': 'data(label)'
+                            "opacity": 0.65,
+                            'z-index': 9999
+                        }
+                    },
+                    {
+                        "selector": 'edge',
+                        'style': {
+                            "curve-style": "bezier",
+                            "opacity": 0.45,
+                            'z-index': 5000,
+                            'label': 'data(label)'  # to add relationship labels
+                        }
+                    },
+                    {
+                        'selector': '.followerNode',
+                        'style': {
+                            'background-color': '#0074D9'
+                        }
+                    },
+                    {
+                        'selector': '.followerEdge',
+                        "style": {
+                            "mid-target-arrow-color": "blue",
+                            "mid-target-arrow-shape": "vee",
+                            "line-color": "#0074D9"
+                        }
+                    },
+                    {
+                        'selector': '.followingNode',
+                        'style': {
+                            'background-color': '#FF4136'
+                        }
+                    },
+                    {
+                        'selector': '.followingEdge',
+                        "style": {
+                            "mid-target-arrow-color": "red",
+                            "mid-target-arrow-shape": "vee",
+                            "line-color": "#FF4136",
+                        }
+                    },
+                    {
+                        "selector": '.genesis',
+                        "style": {
+                            'background-color': '#B10DC9',
+                            "border-width": 2,
+                            "border-color": "purple",
+                            "border-opacity": 1,
+                            "opacity": 1,
+
+                            "label": "data(label)",
+                            "color": "#B10DC9",
+                            "text-opacity": 1,
+                            "font-size": 12,
+                            'z-index': 9999
+                        }
+                    },
+                    {
+                        'selector': ':selected',
+                        "style": {
+                            "border-width": 2,
+                            "border-color": "black",
+                            "border-opacity": 1,
+                            "opacity": 1,
+                            "label": "data(label)",
+                            "color": "black",
+                            "font-size": 12,
+                            'z-index': 9999
                         }
                     }
                 ]

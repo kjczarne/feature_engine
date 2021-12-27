@@ -10,12 +10,14 @@ from ruamel import yaml
 from functools import reduce
 from pathlib import Path
 
+import logging
 import dash_cytoscape as cyto
 from dash import html
 import networkx as nx
 
 
 __version__ = "0.1.0"
+log = logging.getLogger(__name__)
 
 
 class RelationshipInvalidError(Exception):
@@ -363,11 +365,11 @@ class FeatureContainer:
         """
         for is_rule_met, message in [r(f1, f2) for f1, f2 in self.edges for r in self.edge_rules]:
             if self.debug:
-                print(message)
+                log.debug(message)
             if not is_rule_met:
                 raise CompileException(message)
         for is_rule_met, message in [t for r in self.graph_rules for t in r(self.features)]:
             if self.debug:
-                print(message)
+                log.debug(message)
             if not is_rule_met:
                 raise CompileException(message)

@@ -7,6 +7,9 @@ Feature Engine is an experimental graph-based feature engineering tool that read
 1. Clone this repo.
 2. `cd` into this repo and run `pip install -e .` to install the project in development mode. At the moment we don't provide any wheels until we reach the first version of the stable API.
 3. Run `feature_engine -i path/to/some.yaml`.
+4. Go to the URL presented in the command line. You will see something like this:
+
+![fe](./res/fe.png)
 
 ### Writing the YAML feature representations
 

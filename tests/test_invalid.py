@@ -19,6 +19,9 @@ class TestInvalidGraphs(unittest.TestCase):
     def test_mutually_exclusive_obligatory_relationships(self):
         self.fixture("invalid_mutually_exclusive_obligatory.yaml")
 
+    def test_nonunique_guids(self):
+        self.fixture("invalid_nonunique_guids.yaml")
+
 
 if __name__ == "__main__":
     unittest.main()

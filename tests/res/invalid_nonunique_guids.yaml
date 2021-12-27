@@ -1,0 +1,15 @@
+version: '0.1'
+features:
+- binding_time: compilation
+  guid: 0
+  is_mandatory: true
+  name: Feature 1
+  rationale: Rationale 1
+  relationships: []
+- binding_time: initialization
+  guid: 0  # no two features are allowed to have the same GUID
+  is_mandatory: true
+  name: Feature 2
+  rationale: asdfasdfasdf
+  relationships: []
+

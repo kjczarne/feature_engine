@@ -3,7 +3,7 @@ Data model for the Feature Engine.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Generator, List, Optional, Tuple, Union
 from enum import Enum
 
 from ruamel import yaml
@@ -36,6 +36,11 @@ class FeatureGuidException(Exception):
 
 class CompileException(Exception):
     """Raised when the feature graph cannot be compiled."""
+    pass
+
+
+class MalformedYamlFileException(Exception):
+    """Raised when the YAML file loaded is `None`."""
     pass
 
 
@@ -94,13 +99,14 @@ class Feature:
     def has_rel_to(self, other: Feature) -> bool:
         return self.get_rel_to(other) is not None
 
-    def get_rel_to(self, other: Feature) -> Optional[Relationship]:
+    def get_rel_to(self, other: Feature, drop_direction: bool = False) -> Optional[Relationship]:
         for r in self.relationships:
             if r.guid == other.guid:
                 return r
-        for r in other.relationships:
-            if r.guid == self.guid:
-                return r
+        if not drop_direction:
+            for r in other.relationships:
+                if r.guid == self.guid:
+                    return r
 
     @property
     def relationship_guids(self):
@@ -122,21 +128,20 @@ class Feature:
 
 
 RuleFailMessage = str
+RuleTupleReturn = Tuple[bool, RuleFailMessage]
 RuleFunction = Callable[[Feature, Feature], bool]
-RuleFunctionWithMessage = Callable[[Feature, Feature], Tuple[bool, RuleFailMessage]]
+EdgeRuleFunctionWithMessage = Callable[[Feature, Feature], RuleTupleReturn]
 
 
-def rule(rule_function: RuleFunctionWithMessage) -> RuleFunctionWithMessage:
-    def wrapper(f: Feature, g: Feature) -> Tuple[bool, RuleFailMessage]:
+def edge_rule(rule_function: EdgeRuleFunctionWithMessage) -> EdgeRuleFunctionWithMessage:
+    def wrapper(f: Feature, g: Feature) -> RuleTupleReturn:
         """
-        Returns true if the two features are compatible. Explicitly
-        disallows self-relationships.
+        Returns true if the two features are compatible.
 
         Note for developers: This wrapper can be modified to account
         for extra logic that should be applied to each rule.
         """
-        rule_met, message = rule_function(f, g)
-        return f.guid != g.guid and rule_met, message
+        return rule_function(f, g)
     return wrapper
 
 
@@ -152,47 +157,88 @@ class Colors(Enum):
     DEFAULT = "#514b59"
 
 
-@rule
-def __disallow_obligatory_mutual_exclusion(f1: Feature, f2: Feature) -> Tuple[bool, RuleFailMessage]:
-    if not (f1.is_mandatory and f2.is_mandatory and
-            f1.get_rel_to(f2) == RelationshipTypes.INCOMPATIBLE):
-        return False, "Obligatory functions cannot be mutually exclusive. " + \
-                      f"Features: {f1.name}/{f1.guid} and {f2.name}/{f2.guid}"
-    return True, "OK"
+@edge_rule
+def __disallow_obligatory_mutual_exclusion(f1: Feature, f2: Feature) -> RuleTupleReturn:
 
-
-@rule
-def __disallow_conflicting_relationships(f1: Feature, f2: Feature) -> Tuple[bool, RuleFailMessage]:
-    if f1.get_rel_to(f2) is not None and f2.get_rel_to(f1) is not None:
-        # check only if mutual relationship exists
-        return True, "OK"
+    def eval_relationship(relationship: RelationshipTypes) -> RuleTupleReturn:
+        if relationship == RelationshipTypes.INCOMPATIBLE and f1.is_mandatory and f2.is_mandatory:
+            return False, "Obligatory functions cannot be mutually exclusive. " + \
+                          f"Features: {f1.name}/{f1.guid} and {f2.name}/{f2.guid}"
+        return True, f"OK: no mutual exclusion among mandatory features: {f1.name}/{f1.guid} and {f2.name}/{f2.guid}"
+    rel = f1.get_rel_to(f2)
+    if rel is not None:
+        return eval_relationship(rel.rel)
     else:
+        # just using any other `RelationshipTypes` here to reuse the `else` logic
+        return eval_relationship(RelationshipTypes.COMPLEX)
+
+
+@edge_rule
+def __disallow_conflicting_relationships(f1: Feature, f2: Feature) -> RuleTupleReturn:
+    if f1.get_rel_to(f2, drop_direction=True) is not None and f2.get_rel_to(f1, drop_direction=True) is not None:
+        # check only if mutual relationship exists
         return False, f"Conflicting relationships: {f1.name}/{f1.guid} and {f2.name}/{f2.guid}: " + \
             f"{f1.name} has {f1.get_rel_to(f2)} and {f2.name} has {f2.get_rel_to(f1)}"
+    else:
+        return True, "OK: no conflicting relationships"
 
 
-@rule
-def __disallow_nonunique_guids(f1: Feature, f2: Feature) -> Tuple[bool, RuleFailMessage]:
-    if f1.guid == f2.guid:
-        return False, f"Features {f1.name}/{f1.guid} and {f2.name}/{f2.guid} have the same guid"
-    return True, "OK"
+GraphRuleGeneratorReturn = Generator[RuleTupleReturn, None, None]
+GraphRuleFunctionWithMessage = Callable[[List[Feature]], GraphRuleGeneratorReturn]
 
 
-def _default_rules():
+def graph_rule(rule_function: GraphRuleFunctionWithMessage) -> GraphRuleFunctionWithMessage:
+    def wrapper(fg: List[Feature]) -> GraphRuleGeneratorReturn:
+        """
+        Returns true if the graph rule is fulfilled.
+
+        Note for developers: This wrapper can be modified to account
+        for extra logic that should be applied to each rule.
+        """
+        return rule_function(fg)
+    return wrapper
+
+
+@graph_rule
+def __disallow_nonunique_guids(features: List[Feature]) -> GraphRuleGeneratorReturn:
+    sorted_by_guid = sorted(features, key=lambda f: f.guid)
+    for idx, f in enumerate(sorted_by_guid):
+        if idx == len(sorted_by_guid) - 1:
+            break
+        fplus1 = sorted_by_guid[idx + 1]
+        if f.guid == fplus1.guid:
+            yield False, f"Features {f.name}/{f.guid} and {fplus1.name}/{fplus1.guid} have the same guid"
+        yield True, "OK: all GUIDs are unique"
+
+
+def _default_edge_rules():
     return [
         __disallow_obligatory_mutual_exclusion,
         __disallow_conflicting_relationships,
+    ]
+
+
+def _default_graph_rules():
+    return [
         __disallow_nonunique_guids,
     ]
 
 
 @dataclass
 class FeatureContainer:
-
     features: List[Feature] = field(default_factory=list)
-    application_version: str = __version__
-    debug: bool = False
-    rules: List[RuleFunctionWithMessage] = field(default_factory=_default_rules, init=False)
+    version: str = field(default=__version__, compare=False)
+    debug: bool = field(default=False, compare=False)
+    edge_rules: List[EdgeRuleFunctionWithMessage] = field(
+        default_factory=_default_edge_rules,
+        init=False,
+        compare=False
+    )
+    graph_rules: List[GraphRuleFunctionWithMessage] = field(
+        default_factory=_default_graph_rules,
+        init=False,
+        compare=False
+    )
 
     def __post_init__(self):
         # to make user experience better, no explicit call to `compile()`
@@ -208,7 +254,9 @@ class FeatureContainer:
         """
         with open(path, "r") as f:
             dct = yaml.YAML(typ="unsafe", pure=True).load(f)
-            return cls([Feature.from_dict(f) for f in dct["features"]], __version__, debug)
+            if dct is None:
+                raise MalformedYamlFileException(f"Malformed YAML file: {path}")
+            return cls([Feature.from_dict(f) for f in dct["features"]], dct["version"], debug)
 
     def to_yaml(self, path: Union[str, Path]) -> None:
         """
@@ -313,6 +361,13 @@ class FeatureContainer:
         and determines whether the relationships between
         features are correct or not.
         """
-        for is_rule_met, message in [r(f1, f2) for f1, f2 in self.edges for r in self.rules]:
+        for is_rule_met, message in [r(f1, f2) for f1, f2 in self.edges for r in self.edge_rules]:
+            if self.debug:
+                print(message)
+            if not is_rule_met:
+                raise CompileException(message)
+        for is_rule_met, message in [t for r in self.graph_rules for t in r(self.features)]:
+            if self.debug:
+                print(message)
             if not is_rule_met:
                 raise CompileException(message)

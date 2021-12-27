@@ -1,33 +1,16 @@
+version: '0.1'
 features:
-  - id: 123
-    name: Some Feature
-    binding_time: compilation | initialization | runtime
-    incompatible_with:
-    rationale: description
-    is_mandatory: true
-    relationships:
-      - id: 456
-        rel: alternative
-  - id: 456
-    name: Some Other Feature
-    binding_time: runtime
-    incompatible_with:
-    rationale: description
-    is_mandatory: false  # mandatory vs. forks in alternatives???
-
-# features that have dimensions and can be treated quantiatively
-# vs. features that are purely qualitative
-# boolean yes/no features
-
-# context features - describe the patterns of usage
-# performance requirements features - speed and accuraty levels, timesync, etc.
-# representation features - describe how the information is represented
-# interface requirement features - describe how the users or system components will talk to one another
-# operational features - related to the runtime functions that make the program fulfill its purpose
-# methodology features - design and development methodology features
-
-# open-ended possibility to define a "complex" relationship that cannot be simply presented
-
-# define possible relationships between features
-# - "air conditioning requires HP >100" -> quantitative predicate relationship
-# - 
+- binding_time: &id001 compilation
+  guid: 0
+  is_mandatory: true
+  name: Feature 1
+  rationale: Rationale 1
+  relationships:
+  - guid: 1
+    rel: alternative
+- binding_time: *id001
+  guid: 1
+  is_mandatory: true
+  name: Feature 2
+  rationale: Rationale 2
+  relationships: []
